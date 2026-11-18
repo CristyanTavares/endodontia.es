@@ -1,5 +1,9 @@
 entregavel/
 Entregavel/
 *.zip
+*.mp4
+*.pdf
+testimonials/*.png
+debug_*
 .DS_Store
 Thumbs.db
