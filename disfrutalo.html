@@ -390,17 +390,39 @@
     })();
 
     // 2. Query Parameters Preservation (UTMs, Hotmart SRC, SCK, etc.)
-    function redirectWithQuery(url) {
-      if (!url || url === '#' || url === '') return;
+    function buildUrlWithParams(url) {
+      if (!url || url === '#' || url === '') return url;
       try {
         const targetUrl = new URL(url, window.location.href);
-        const currentParams = new URLSearchParams(window.location.search);
-        currentParams.forEach(function(value, key) {
-          targetUrl.searchParams.set(key, value);
-        });
-        window.location.href = targetUrl.toString();
+        if (window.location.search) {
+          const currentParams = new URLSearchParams(window.location.search);
+          currentParams.forEach(function(value, key) {
+            if (key === 'off' && targetUrl.searchParams.has('off')) return;
+            targetUrl.searchParams.set(key, value);
+          });
+        }
+        return targetUrl.toString();
       } catch (e) {
-        window.location.href = url;
+        const search = window.location.search ? window.location.search.replace(/^\?/, '') : '';
+        if (!search) return url;
+        return url + (url.indexOf('?') === -1 ? '?' : '&') + search;
+      }
+    }
+
+    var isRedirecting = false;
+    function redirectWithQuery(url, eventName) {
+      if (!url || url === '#' || url === '' || isRedirecting) return;
+      isRedirecting = true;
+      const finalUrl = buildUrlWithParams(url);
+      let pixelFired = false;
+      if (eventName && typeof window.fbq === 'function') {
+        try { window.fbq('track', eventName, { value: 14.90, currency: 'USD' }); pixelFired = true; }
+        catch (e) { console.warn('fbq error:', e); }
+      }
+      if (pixelFired) {
+        setTimeout(function() { window.location.href = finalUrl; }, 250);
+      } else {
+        window.location.href = finalUrl;
       }
     }
   </script>

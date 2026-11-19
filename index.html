@@ -85,31 +85,75 @@
 (function () {
   var initialSearch = window.location.search;
 
-  function redirectWithQuery(destination) {
-    if (!destination) return;
-    var currentSearch = window.location.search || initialSearch;
-    var finalUrl = destination;
-    if (currentSearch && currentSearch !== "?") {
+  // 1. Constroi URL de destino forcando todos os params de window.location.search
+  function buildUrlWithParams(destination) {
+    if (!destination || destination === "#" || destination === "") return destination;
+    try {
+      var destUrl = new URL(destination, window.location.href);
+      var currentSearch = window.location.search || initialSearch;
+      if (currentSearch && currentSearch !== "?") {
+        var currentParams = new URLSearchParams(currentSearch);
+        currentParams.forEach(function (value, key) {
+          if (key === "off" && destUrl.searchParams.has("off")) return;
+          destUrl.searchParams.set(key, value);
+        });
+      }
+      return destUrl.toString();
+    } catch (e) {
+      var search = (window.location.search || initialSearch || "").replace(/^\?/, "");
+      if (!search) return destination;
       var separator = destination.indexOf("?") === -1 ? "?" : "&";
-      finalUrl = destination + separator + currentSearch.replace(/^\?/, "");
+      return destination + separator + search;
     }
+  }
+
+  // 2. Redirecionamento seguro com delay de 250ms para o Pixel Meta disparar antes
+  var isRedirecting = false;
+  function redirectWithQuery(destination, eventName) {
+    if (!destination || isRedirecting) return;
+    isRedirecting = true;
+    var finalUrl = buildUrlWithParams(destination);
+    var ev = eventName || "InitiateCheckout";
+    var pixelFired = false;
     if (typeof window.fbq === "function") {
-      window.fbq("track", "InitiateCheckout");
+      try {
+        window.fbq("track", ev);
+        pixelFired = true;
+      } catch (err) {
+        console.warn("fbq error:", err);
+      }
     }
-    window.location.href = finalUrl;
+    if (pixelFired) {
+      setTimeout(function () { window.location.href = finalUrl; }, 250);
+    } else {
+      window.location.href = finalUrl;
+    }
   }
 
   window.redirectWithQuery = redirectWithQuery;
+  window.buildUrlWithParams = buildUrlWithParams;
+
+  // 3. Sincroniza data-redirect com parametros atuais ao carregar
+  function syncAllLinks() {
+    var search = window.location.search || initialSearch;
+    if (!search || search === "?") return;
+    document.querySelectorAll("a[data-redirect]").forEach(function (link) {
+      var raw = link.getAttribute("data-redirect");
+      if (raw && raw !== "#") link.setAttribute("data-redirect", buildUrlWithParams(raw));
+    });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", syncAllLinks);
+  } else {
+    syncAllLinks();
+  }
 
   const modal = document.getElementById("upgrade-offer-modal");
   const basicButton = document.getElementById("plan-basico-button");
   const closeButton = document.getElementById("upgrade-offer-close");
 
   function openOffer(event) {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
+    if (event) { event.preventDefault(); event.stopPropagation(); }
     if (!modal) {
       if (basicButton && basicButton.getAttribute("data-redirect")) {
         redirectWithQuery(basicButton.getAttribute("data-redirect"));
@@ -139,6 +183,7 @@
     if (event.key === "Escape" && modal && !modal.classList.contains("hidden")) closeOffer();
   });
 
+  // 4. Captura todos os cliques de redirecionamento
   document.addEventListener("click", function (event) {
     var link = event.target.closest("a[data-redirect]");
     if (link) {
@@ -147,15 +192,21 @@
       redirectWithQuery(link.getAttribute("data-redirect"));
       return;
     }
+    var extLink = event.target.closest('a[href^="http://"], a[href^="https://"]');
+    if (extLink && !extLink.hasAttribute("data-redirect")) {
+      var href = extLink.getAttribute("href");
+      if (href && (href.indexOf("pay.hotmart.com") !== -1 || href.indexOf("hotmart.com") !== -1)) {
+        event.preventDefault();
+        redirectWithQuery(href);
+        return;
+      }
+    }
     var anchor = event.target.closest('a[href^="#"]');
     if (anchor) {
       var targetId = anchor.getAttribute("href");
       if (targetId && targetId.length > 1) {
         var targetEl = document.querySelector(targetId);
-        if (targetEl) {
-          event.preventDefault();
-          targetEl.scrollIntoView({ behavior: "smooth" });
-        }
+        if (targetEl) { event.preventDefault(); targetEl.scrollIntoView({ behavior: "smooth" }); }
       }
     }
   });
