@@ -70,10 +70,11 @@
     .animate-pulse-subtle {
       animation: pulse-subtle 2.5s infinite ease-in-out;
     }
+    #hotmart-sales-funnel:not(:empty) + #fallback-cta-wrapper {
+      display: none !important;
+    }
   </style>
 
-  <!-- Hotmart Checkout Elements Script (1-Click Upsell) -->
-  <script src="https://checkout.hotmart.com/lib/hotmart-checkout-elements.js" async></script>
 </head>
 <body class="min-h-screen bg-background text-foreground antialiased selection:bg-offer-green-light selection:text-offer-green">
 
@@ -331,8 +332,16 @@
       </ul>
     </div>
 
-    <!-- Hotmart Sales Funnel Widget Placeholder -->
-    <div id="hotmart-sales-funnel" class="w-full max-w-xl mx-auto my-2"></div>
+        <!-- HOTMART - Sales Funnel Widget -->
+    <!--- sales funnel container --->
+    <div id="hotmart-sales-funnel"></div>
+
+    <!--- script load and setup --->
+    <script src="https://checkout.hotmart.com/lib/hotmart-checkout-elements.js"></script>
+    <script>
+    checkoutElements.init('salesFunnel').mount('#hotmart-sales-funnel')
+    </script>
+    <!-- HOTMART - Sales Funnel Widget -->
 
     <!-- Fallback Primary CTA Button (Visible and Ready to use) -->
     <div id="fallback-cta-wrapper" class="w-full max-w-xl mx-auto flex flex-col items-center mt-2">
@@ -451,14 +460,7 @@
         });
       }
 
-      // 4. Hotmart Checkout Elements Initialization (when widget loads)
-      if (window.checkoutElements) {
-        try {
-          window.checkoutElements.init("salesFunnel").mount("#hotmart-sales-funnel");
-        } catch (err) {
-          console.warn("Hotmart Sales Funnel init:", err);
-        }
-      }
+      // Hotmart Sales Funnel initialized via official widget snippet above
     });
   </script>
 
