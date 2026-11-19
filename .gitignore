@@ -3,7 +3,8 @@ Entregavel/
 *.zip
 *.mp4
 *.pdf
-testimonials/*.png
+testimonials/
+images/orig-*
 debug_*
 .DS_Store
 Thumbs.db
